@@ -3,8 +3,12 @@ import { redirect } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Topbar } from "@/components/layout/topbar"
+import { Sidebar } from "@/components/layout/sidebar"
 import Link from "next/link"
-import { Plus, Eye, FileText } from "lucide-react"
+import { Download, Eye, FileText, Search, Filter, CreditCard, CheckCircle, Clock, AlertTriangle, DollarSign, Calendar } from "lucide-react"
 
 export default async function InvoicesPage() {
   const supabase = await createClient()
@@ -23,26 +27,22 @@ export default async function InvoicesPage() {
     redirect("/auth/login")
   }
 
-  // Get invoices with customer and order information
+  // Get client's invoices only
   const { data: invoices } = await supabase
     .from("invoices")
     .select(`
       *,
-      customers (company_name, contact_name),
       orders (order_number)
     `)
+    .eq("customer_id", user.id)
     .order("created_at", { ascending: false })
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "draft":
-        return "secondary"
-      case "sent":
-        return "default"
-      case "viewed":
-        return "default"
+      case "unpaid":
+        return "warning"
       case "paid":
-        return "default"
+        return "success"
       case "overdue":
         return "destructive"
       case "cancelled":
@@ -52,103 +52,376 @@ export default async function InvoicesPage() {
     }
   }
 
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "unpaid":
+        return <Clock className="h-4 w-4" />
+      case "paid":
+        return <CheckCircle className="h-4 w-4" />
+      case "overdue":
+        return <AlertTriangle className="h-4 w-4" />
+      case "cancelled":
+        return <AlertTriangle className="h-4 w-4" />
+      default:
+        return <Clock className="h-4 w-4" />
+    }
+  }
+
+  // Filter invoices by status
+  const unpaidInvoices = invoices?.filter(invoice => invoice.status === 'unpaid') || []
+  const paidInvoices = invoices?.filter(invoice => invoice.status === 'paid') || []
+  const overdueInvoices = invoices?.filter(invoice => invoice.status === 'overdue') || []
+  
+  const totalUnpaid = unpaidInvoices.reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
+  const totalPaid = paidInvoices.reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
+
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
-      <div className="w-64 bg-card border-r">
-        <div className="p-6">
-          <h2 className="text-lg font-semibold">OMS Dashboard</h2>
-          <p className="text-sm text-muted-foreground">{profile.full_name}</p>
-          <p className="text-xs text-muted-foreground capitalize">{profile.role}</p>
-        </div>
-        <nav className="px-4 space-y-2">
-          <Link href="/dashboard" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent">
-            Dashboard
-          </Link>
-          <Link href="/orders" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent">
-            Orders
-          </Link>
-          <Link href="/billing" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent">
-            Billing
-          </Link>
-          <Link
-            href="/invoices"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary text-primary-foreground"
-          >
-            <FileText className="h-4 w-4" />
-            Invoices
-          </Link>
-          <Link href="/payments" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent">
-            Payments
-          </Link>
-        </nav>
-      </div>
+      <Sidebar userRole="client" />
 
-      {/* Main Content */}
-      <div className="flex-1 p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">Invoices</h1>
-            <p className="text-muted-foreground">Manage and track all invoices</p>
-          </div>
-          {(profile.role === "admin" || profile.role === "finance") && (
-            <Button asChild>
-              <Link href="/invoices/new">
-                <Plus className="h-4 w-4 mr-2" />
-                New Invoice
-              </Link>
-            </Button>
-          )}
-        </div>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Topbar */}
+        <Topbar user={user} />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>All Invoices</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {invoices && invoices.length > 0 ? (
-              <div className="space-y-4">
-                {invoices.map((invoice) => (
-                  <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <p className="font-medium">Invoice #{invoice.invoice_number}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {invoice.customers?.company_name} - {invoice.customers?.contact_name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">Order #{invoice.orders?.order_number}</p>
-                        </div>
-                        <Badge variant={getStatusColor(invoice.status)}>{invoice.status}</Badge>
-                      </div>
-                      <div className="mt-2 flex gap-4 text-sm text-muted-foreground">
-                        <span>Amount: ${invoice.total_amount}</span>
-                        <span>Issue Date: {new Date(invoice.issue_date).toLocaleDateString()}</span>
-                        <span>Due Date: {new Date(invoice.due_date).toLocaleDateString()}</span>
-                        {invoice.paid_date && <span>Paid: {new Date(invoice.paid_date).toLocaleDateString()}</span>}
-                      </div>
+        {/* Invoices & Payments Content */}
+        <main className="flex-1 p-6">
+          <div className="max-w-6xl mx-auto">
+            {/* Header */}
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold">Invoices & Payments</h1>
+              <p className="text-muted-foreground">Manage your invoices and make payments</p>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <Card className="hover-lift">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Unpaid Invoices</p>
+                      <p className="text-2xl font-bold">{unpaidInvoices.length}</p>
                     </div>
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/invoices/${invoice.id}`}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        View
-                      </Link>
-                    </Button>
+                    <Clock className="h-8 w-8 text-warning" />
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No invoices found</p>
-                {(profile.role === "admin" || profile.role === "finance") && (
-                  <Button asChild className="mt-4">
-                    <Link href="/invoices/new">Create your first invoice</Link>
-                  </Button>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                </CardContent>
+              </Card>
+              
+              <Card className="hover-lift">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Amount Due</p>
+                      <p className="text-2xl font-bold">${totalUnpaid.toFixed(2)}</p>
+                    </div>
+                    <DollarSign className="h-8 w-8 text-destructive" />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="hover-lift">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Paid Invoices</p>
+                      <p className="text-2xl font-bold">{paidInvoices.length}</p>
+                    </div>
+                    <CheckCircle className="h-8 w-8 text-success" />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="hover-lift">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Total Paid</p>
+                      <p className="text-2xl font-bold">${totalPaid.toFixed(2)}</p>
+                    </div>
+                    <CreditCard className="h-8 w-8 text-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Invoices Tabs */}
+            <Tabs defaultValue="unpaid" className="space-y-6">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="unpaid" className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Unpaid ({unpaidInvoices.length})
+                </TabsTrigger>
+                <TabsTrigger value="paid" className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Paid ({paidInvoices.length})
+                </TabsTrigger>
+                <TabsTrigger value="overdue" className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Overdue ({overdueInvoices.length})
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Unpaid Invoices */}
+              <TabsContent value="unpaid">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Unpaid Invoices</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {unpaidInvoices.length > 0 ? (
+                      <div className="space-y-4">
+                        {unpaidInvoices.map((invoice) => (
+                          <div key={invoice.id} className="border rounded-lg p-6 hover:bg-muted/30 transition-colors">
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="text-lg font-semibold">Invoice #{invoice.invoice_number}</h3>
+                                  <Badge variant={getStatusColor(invoice.status)}>
+                                    {getStatusIcon(invoice.status)}
+                                    <span className="ml-1 capitalize">{invoice.status}</span>
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                  For Order #{invoice.orders?.order_number} • Issued: {new Date(invoice.issue_date).toLocaleDateString()}
+                                </p>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                  <div className="flex items-center gap-2">
+                                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                                    <span className="text-sm">Amount: <span className="font-semibold">${invoice.total_amount?.toFixed(2) || '0.00'}</span></span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                                    <span className="text-sm">Due: {new Date(invoice.due_date).toLocaleDateString()}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <FileText className="h-4 w-4 text-muted-foreground" />
+                                    <span className="text-sm">GST Compliant</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="space-y-2">
+                                  <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                                    <CreditCard className="h-4 w-4 mr-2" />
+                                    Pay Now
+                                  </Button>
+                                  <Button asChild variant="outline" size="sm">
+                                    <Link href={`/invoices/${invoice.id}`}>
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View
+                                    </Link>
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex gap-3 pt-4 border-t">
+                              <Button size="sm" variant="outline">
+                                <Download className="h-4 w-4 mr-2" />
+                                Download PDF
+                              </Button>
+                              <Button size="sm" variant="outline">
+                                <FileText className="h-4 w-4 mr-2" />
+                                Print Invoice
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                          <CheckCircle className="h-8 w-8 text-success" />
+                        </div>
+                        <h3 className="text-lg font-semibold mb-2">All Caught Up!</h3>
+                        <p className="text-muted-foreground">
+                          You don't have any unpaid invoices at the moment
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Paid Invoices */}
+              <TabsContent value="paid">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Paid Invoices</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {paidInvoices.length > 0 ? (
+                      <div className="space-y-4">
+                        {paidInvoices.map((invoice) => (
+                          <div key={invoice.id} className="border rounded-lg p-6 hover:bg-muted/30 transition-colors">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="text-lg font-semibold">Invoice #{invoice.invoice_number}</h3>
+                                  <Badge variant="success">
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                    Paid
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  For Order #{invoice.orders?.order_number} • Paid: {new Date(invoice.paid_date || invoice.updated_at).toLocaleDateString()}
+                                </p>
+                                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                                  <span>Amount: <span className="font-semibold">${invoice.total_amount?.toFixed(2) || '0.00'}</span></span>
+                                  <span>Payment Method: {invoice.payment_method || 'N/A'}</span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="space-y-2">
+                                  <Button asChild variant="outline" size="sm">
+                                    <Link href={`/invoices/${invoice.id}`}>
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View
+                                    </Link>
+                                  </Button>
+                                  <Button variant="outline" size="sm">
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Receipt
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                          <FileText className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <h3 className="text-lg font-semibold mb-2">No Paid Invoices</h3>
+                        <p className="text-muted-foreground">
+                          Your paid invoices will appear here
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Overdue Invoices */}
+              <TabsContent value="overdue">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Overdue Invoices</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {overdueInvoices.length > 0 ? (
+                      <div className="space-y-4">
+                        {overdueInvoices.map((invoice) => (
+                          <div key={invoice.id} className="border border-red-200 rounded-lg p-6 bg-red-50/50">
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="text-lg font-semibold">Invoice #{invoice.invoice_number}</h3>
+                                  <Badge variant="destructive">
+                                    <AlertTriangle className="h-4 w-4 mr-1" />
+                                    Overdue
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                  For Order #{invoice.orders?.order_number} • Due: {new Date(invoice.due_date).toLocaleDateString()}
+                                </p>
+                                
+                                <div className="bg-red-100 border border-red-200 rounded-lg p-3 mb-4">
+                                  <p className="text-sm text-red-800">
+                                    <AlertTriangle className="h-4 w-4 inline mr-2" />
+                                    This invoice is overdue. Please make payment as soon as possible to avoid additional charges.
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="space-y-2">
+                                  <Button size="sm" className="bg-red-600 hover:bg-red-700">
+                                    <CreditCard className="h-4 w-4 mr-2" />
+                                    Pay Now
+                                  </Button>
+                                  <Button asChild variant="outline" size="sm">
+                                    <Link href={`/invoices/${invoice.id}`}>
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View
+                                    </Link>
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                          <CheckCircle className="h-8 w-8 text-success" />
+                        </div>
+                        <h3 className="text-lg font-semibold mb-2">No Overdue Invoices</h3>
+                        <p className="text-muted-foreground">
+                          Great! You don't have any overdue invoices
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+
+            {/* Payment Methods */}
+            <Card className="mt-8">
+              <CardHeader>
+                <CardTitle>Accepted Payment Methods</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="flex items-center gap-3 p-4 border rounded-lg">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <CreditCard className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Razorpay</p>
+                      <p className="text-sm text-muted-foreground">Cards, UPI, Net Banking</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 p-4 border rounded-lg">
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <span className="text-lg">💳</span>
+                    </div>
+                    <div>
+                      <p className="font-medium">UPI</p>
+                      <p className="text-sm text-muted-foreground">Direct UPI Payment</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 p-4 border rounded-lg">
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                      <span className="text-lg">🏦</span>
+                    </div>
+                    <div>
+                      <p className="font-medium">NEFT</p>
+                      <p className="text-sm text-muted-foreground">Bank Transfer</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 p-4 border rounded-lg">
+                    <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <span className="text-lg">📄</span>
+                    </div>
+                    <div>
+                      <p className="font-medium">Cheque</p>
+                      <p className="text-sm text-muted-foreground">Physical Cheque</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
       </div>
     </div>
   )

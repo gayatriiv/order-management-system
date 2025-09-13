@@ -1,9 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Search, Bell, User, Settings, LogOut, Moon, Sun } from "lucide-react"
+import { Bell, User, Settings, LogOut, Moon, Sun, ShoppingCart, Wrench, FileText, HelpCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -17,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useTheme } from "next-themes"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 interface TopbarProps {
   user: {
@@ -28,7 +28,6 @@ interface TopbarProps {
 }
 
 export function Topbar({ user }: TopbarProps) {
-  const [searchQuery, setSearchQuery] = useState("")
   const { theme, setTheme } = useTheme()
   const router = useRouter()
   const supabase = createClient()
@@ -53,17 +52,44 @@ export function Topbar({ user }: TopbarProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-16 items-center justify-between px-6">
-        {/* Search Bar */}
-        <div className="flex flex-1 items-center space-x-4">
-          <div className="relative w-full max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search orders, customers, products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 h-9 bg-muted/50 border-0 focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all duration-200"
-            />
-          </div>
+        {/* Logo */}
+        <div className="flex items-center space-x-4">
+          <Link href="/dashboard" className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <ShoppingCart className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <div className="hidden md:block">
+              <h1 className="text-lg font-bold text-foreground">Client Portal</h1>
+            </div>
+          </Link>
+        </div>
+
+        {/* Quick Links */}
+        <div className="hidden md:flex items-center space-x-6">
+          <Link href="/orders">
+            <Button variant="ghost" size="sm" className="flex items-center space-x-2">
+              <ShoppingCart className="h-4 w-4" />
+              <span>Orders</span>
+            </Button>
+          </Link>
+          <Link href="/customizations">
+            <Button variant="ghost" size="sm" className="flex items-center space-x-2">
+              <Wrench className="h-4 w-4" />
+              <span>Customizations</span>
+            </Button>
+          </Link>
+          <Link href="/invoices">
+            <Button variant="ghost" size="sm" className="flex items-center space-x-2">
+              <FileText className="h-4 w-4" />
+              <span>Invoices</span>
+            </Button>
+          </Link>
+          <Link href="/support">
+            <Button variant="ghost" size="sm" className="flex items-center space-x-2">
+              <HelpCircle className="h-4 w-4" />
+              <span>Support</span>
+            </Button>
+          </Link>
         </div>
 
         {/* Right Side Actions */}

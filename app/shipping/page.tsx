@@ -3,8 +3,10 @@ import { redirect } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import Link from "next/link"
-import { Plus, Eye, Truck, Package } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Topbar } from "@/components/layout/topbar"
+import { Sidebar } from "@/components/layout/sidebar"
+import { Search, Truck, MapPin, Clock, CheckCircle, Package, AlertTriangle } from "lucide-react"
 
 export default async function ShippingPage() {
   const supabase = await createClient()
@@ -23,147 +25,321 @@ export default async function ShippingPage() {
     redirect("/auth/login")
   }
 
-  // Get shipments with related data
-  const { data: shipments } = await supabase
-    .from("shipments")
+  // Get client's shipped orders
+  const { data: shippedOrders } = await supabase
+    .from("orders")
     .select(`
       *,
-      orders (
-        order_number,
-        customers (company_name, contact_name)
-      ),
-      shipping_carriers (name, code)
+      order_items (
+        *,
+        products (
+          name,
+          sku
+        )
+      )
     `)
-    .order("created_at", { ascending: false })
+    .eq("customer_id", user.id)
+    .in("status", ["dispatched", "delivered"])
+    .order("updated_at", { ascending: false })
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "dispatched":
+        return <Truck className="h-4 w-4 text-blue-600" />
+      case "delivered":
+        return <CheckCircle className="h-4 w-4 text-green-600" />
+      default:
+        return <Package className="h-4 w-4 text-gray-600" />
+    }
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "pending":
-        return "default"
-      case "processing":
-        return "default"
-      case "shipped":
-        return "default"
-      case "in_transit":
-        return "default"
+      case "dispatched":
+        return "info"
       case "delivered":
-        return "default"
-      case "exception":
-        return "destructive"
-      case "returned":
-        return "destructive"
+        return "success"
       default:
         return "secondary"
     }
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
-      <div className="w-64 bg-card border-r">
-        <div className="p-6">
-          <h2 className="text-lg font-semibold">OMS Dashboard</h2>
-          <p className="text-sm text-muted-foreground">{profile.full_name}</p>
-          <p className="text-xs text-muted-foreground capitalize">{profile.role}</p>
-        </div>
-        <nav className="px-4 space-y-2">
-          <Link href="/dashboard" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent">
-            Dashboard
-          </Link>
-          <Link href="/orders" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent">
-            Orders
-          </Link>
-          {(profile.role === "admin" || profile.role === "ops") && (
-            <Link href="/fulfillment" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent">
-              <Truck className="h-4 w-4" />
-              Fulfillment
-            </Link>
-          )}
-          <Link
-            href="/shipping"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary text-primary-foreground"
-          >
-            <Package className="h-4 w-4" />
-            Shipping
-          </Link>
-          {(profile.role === "admin" || profile.role === "ops") && (
-            <Link href="/products" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent">
-              Products
-            </Link>
-          )}
-        </nav>
-      </div>
+      <Sidebar userRole="client" />
 
-      {/* Main Content */}
-      <div className="flex-1 p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">Shipping Management</h1>
-            <p className="text-muted-foreground">Track and manage all shipments</p>
-          </div>
-          {(profile.role === "admin" || profile.role === "ops") && (
-            <Button asChild>
-              <Link href="/shipping/new">
-                <Plus className="h-4 w-4 mr-2" />
-                New Shipment
-              </Link>
-            </Button>
-          )}
-        </div>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Topbar */}
+        <Topbar user={user} />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>All Shipments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {shipments && shipments.length > 0 ? (
-              <div className="space-y-4">
-                {shipments.map((shipment) => (
-                  <div key={shipment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <p className="font-medium">Shipment #{shipment.shipment_number}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Order #{shipment.orders?.order_number} - {shipment.orders?.customers?.company_name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{shipment.orders?.customers?.contact_name}</p>
-                        </div>
-                        <Badge variant={getStatusColor(shipment.status)}>{shipment.status.replace("_", " ")}</Badge>
-                      </div>
-                      <div className="mt-2 flex gap-4 text-sm text-muted-foreground">
-                        {shipment.shipping_carriers?.name && <span>Carrier: {shipment.shipping_carriers.name}</span>}
-                        {shipment.tracking_number && <span>Tracking: {shipment.tracking_number}</span>}
-                        {shipment.service_type && <span>Service: {shipment.service_type}</span>}
-                        <span>Created: {new Date(shipment.created_at).toLocaleDateString()}</span>
-                        {shipment.estimated_delivery_date && (
-                          <span>Est. Delivery: {new Date(shipment.estimated_delivery_date).toLocaleDateString()}</span>
-                        )}
-                      </div>
+        {/* Shipping & Tracking Content */}
+        <main className="flex-1 p-6">
+          <div className="max-w-6xl mx-auto">
+            {/* Header */}
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold">Track Shipments</h1>
+              <p className="text-muted-foreground">Track your orders with AWB search and live status updates</p>
+            </div>
+
+            {/* AWB Search */}
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle>Track by AWB Number</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-4">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Enter AWB/Tracking number..."
+                      className="pl-10"
+                    />
+                  </div>
+                  <Button>Track Package</Button>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Enter your AWB number to get real-time tracking information
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <Card className="hover-lift">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">In Transit</p>
+                      <p className="text-2xl font-bold">{shippedOrders?.filter(order => order.status === 'dispatched').length || 0}</p>
                     </div>
-                    <div className="flex gap-2">
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/shipping/${shipment.id}`}>
-                          <Eye className="h-4 w-4 mr-2" />
-                          View
-                        </Link>
-                      </Button>
+                    <Truck className="h-8 w-8 text-blue-600" />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="hover-lift">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Delivered</p>
+                      <p className="text-2xl font-bold">{shippedOrders?.filter(order => order.status === 'delivered').length || 0}</p>
+                    </div>
+                    <CheckCircle className="h-8 w-8 text-green-600" />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="hover-lift">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Total Shipments</p>
+                      <p className="text-2xl font-bold">{shippedOrders?.length || 0}</p>
+                    </div>
+                    <Package className="h-8 w-8 text-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Shipments List */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Your Shipments</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {shippedOrders && shippedOrders.length > 0 ? (
+                  <div className="space-y-6">
+                    {shippedOrders.map((order) => (
+                      <div key={order.id} className="border rounded-lg p-6 hover:bg-muted/30 transition-colors">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="text-lg font-semibold">Order #{order.order_number}</h3>
+                              <Badge variant={getStatusColor(order.status)}>
+                                {getStatusIcon(order.status)}
+                                <span className="ml-1 capitalize">{order.status}</span>
+                              </Badge>
+                            </div>
+                            
+                            {/* Order Items */}
+                            <div className="space-y-2 mb-4">
+                              {order.order_items?.slice(0, 2).map((item: any) => (
+                                <div key={item.id} className="flex items-center justify-between text-sm">
+                                  <span>{item.products?.name} x {item.quantity}</span>
+                                  <span className="text-muted-foreground">SKU: {item.products?.sku}</span>
+                                </div>
+                              ))}
+                              {order.order_items?.length > 2 && (
+                                <p className="text-xs text-muted-foreground">
+                                  +{order.order_items.length - 2} more items
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Shipping Info */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                              <div className="flex items-center gap-2">
+                                <MapPin className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm">Shipped to: {order.shipping_address || 'Default Address'}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Truck className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm">AWB: {order.tracking_number || 'N/A'}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm">Shipped: {new Date(order.updated_at || order.created_at).toLocaleDateString()}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Package className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm">Weight: {order.total_weight || 'N/A'} kg</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-lg font-semibold">${order.total_amount?.toFixed(2) || '0.00'}</p>
+                            <Button variant="outline" size="sm" className="mt-2">
+                              <Truck className="h-4 w-4 mr-2" />
+                              Track Details
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Tracking Timeline */}
+                        <div className="border-t pt-4">
+                          <h4 className="font-medium mb-3">Tracking Timeline</h4>
+                          <div className="space-y-3">
+                            {/* Example tracking events */}
+                            <div className="flex items-center gap-3">
+                              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                              <div className="flex-1">
+                                <p className="text-sm font-medium">Package delivered</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {order.status === 'delivered' ? 'Delivered to recipient' : 'Expected delivery'}
+                                </p>
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {order.status === 'delivered' ? new Date(order.updated_at || order.created_at).toLocaleDateString() : 'Pending'}
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-center gap-3">
+                              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                              <div className="flex-1">
+                                <p className="text-sm font-medium">Out for delivery</p>
+                                <p className="text-xs text-muted-foreground">Package is out for delivery</p>
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {order.status === 'dispatched' ? new Date(order.updated_at || order.created_at).toLocaleDateString() : 'Pending'}
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-center gap-3">
+                              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                              <div className="flex-1">
+                                <p className="text-sm font-medium">In transit</p>
+                                <p className="text-xs text-muted-foreground">Package is in transit to destination</p>
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {order.status === 'dispatched' ? new Date(order.updated_at || order.created_at).toLocaleDateString() : 'Pending'}
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-center gap-3">
+                              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                              <div className="flex-1">
+                                <p className="text-sm font-medium">Package shipped</p>
+                                <p className="text-xs text-muted-foreground">Package has been shipped from origin</p>
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(order.updated_at || order.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 mt-4 pt-4 border-t">
+                          <Button size="sm" variant="outline">
+                            <MapPin className="h-4 w-4 mr-2" />
+                            View Route
+                          </Button>
+                          <Button size="sm" variant="outline">
+                            <Package className="h-4 w-4 mr-2" />
+                            Delivery Proof
+                          </Button>
+                          {order.status === 'delivered' && (
+                            <Button size="sm" variant="outline">
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Rate Delivery
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Truck className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2">No Shipments Yet</h3>
+                    <p className="text-muted-foreground mb-6">
+                      Your shipped orders will appear here for tracking
+                    </p>
+                    <Button>
+                      <Package className="h-4 w-4 mr-2" />
+                      View All Orders
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Shipping Partners */}
+            <Card className="mt-8">
+              <CardHeader>
+                <CardTitle>Our Shipping Partners</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex items-center gap-3 p-4 border rounded-lg">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Truck className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium">BlueDart</p>
+                      <p className="text-sm text-muted-foreground">Express Delivery</p>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No shipments found</p>
-                {(profile.role === "admin" || profile.role === "ops") && (
-                  <Button asChild className="mt-4">
-                    <Link href="/shipping/new">Create your first shipment</Link>
-                  </Button>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  
+                  <div className="flex items-center gap-3 p-4 border rounded-lg">
+                    <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                      <Truck className="h-5 w-5 text-red-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium">DTDC</p>
+                      <p className="text-sm text-muted-foreground">Standard Delivery</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 p-4 border rounded-lg">
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                      <Truck className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Delhivery</p>
+                      <p className="text-sm text-muted-foreground">Fast Delivery</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
       </div>
     </div>
   )

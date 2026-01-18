@@ -17,9 +17,12 @@ import {
   Wrench,
   ChevronLeft,
   ChevronRight,
+  LogOut,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 
 interface SidebarProps {
   userRole: string
@@ -27,7 +30,16 @@ interface SidebarProps {
   onToggle?: () => void
 }
 
-const navigationItems = [
+interface NavigationItem {
+  title: string;
+  href: string;
+  icon: React.ElementType;
+  roles: string[];
+  section: string;
+  badge?: string;
+}
+
+const navigationItems: NavigationItem[] = [
   {
     title: "Dashboard",
     href: "/dashboard",
@@ -81,8 +93,15 @@ const navigationItems = [
 
 export function Sidebar({ userRole, isCollapsed = false, onToggle }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const supabase = createClient()
 
-  const filteredItems = navigationItems.filter(item => 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.push("/auth/login")
+  }
+
+  const filteredItems = navigationItems.filter(item =>
     item.roles.includes(userRole)
   )
 
@@ -104,7 +123,7 @@ export function Sidebar({ userRole, isCollapsed = false, onToggle }: SidebarProp
             </div>
           </div>
         )}
-        
+
         {onToggle && (
           <Button
             variant="ghost"
@@ -132,15 +151,15 @@ export function Sidebar({ userRole, isCollapsed = false, onToggle }: SidebarProp
           )}
           {filteredItems.filter(item => item.section === "main").map((item) => {
             const isActive = pathname === item.href
-            
+
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative",
-                  isActive 
-                    ? "bg-primary text-primary-foreground shadow-sm" 
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-sidebar-foreground hover:bg-accent hover:text-accent-foreground",
                   isCollapsed && "justify-center px-2"
                 )}
@@ -149,13 +168,13 @@ export function Sidebar({ userRole, isCollapsed = false, onToggle }: SidebarProp
                   "h-5 w-5 flex-shrink-0",
                   isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-accent-foreground"
                 )} />
-                
+
                 {!isCollapsed && (
                   <>
                     <span className="truncate">{item.title}</span>
                     {item.badge && (
-                      <Badge 
-                        variant="secondary" 
+                      <Badge
+                        variant="secondary"
                         className="ml-auto text-xs px-2 py-0.5 bg-primary/10 text-primary hover:bg-primary/20"
                       >
                         {item.badge}
@@ -163,7 +182,7 @@ export function Sidebar({ userRole, isCollapsed = false, onToggle }: SidebarProp
                     )}
                   </>
                 )}
-                
+
                 {/* Tooltip for collapsed state */}
                 {isCollapsed && (
                   <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-sm rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
@@ -189,15 +208,15 @@ export function Sidebar({ userRole, isCollapsed = false, onToggle }: SidebarProp
           )}
           {filteredItems.filter(item => item.section === "orders").map((item) => {
             const isActive = pathname === item.href
-            
+
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative",
-                  isActive 
-                    ? "bg-primary text-primary-foreground shadow-sm" 
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-sidebar-foreground hover:bg-accent hover:text-accent-foreground",
                   isCollapsed && "justify-center px-2"
                 )}
@@ -206,13 +225,13 @@ export function Sidebar({ userRole, isCollapsed = false, onToggle }: SidebarProp
                   "h-5 w-5 flex-shrink-0",
                   isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-accent-foreground"
                 )} />
-                
+
                 {!isCollapsed && (
                   <>
                     <span className="truncate">{item.title}</span>
                     {item.badge && (
-                      <Badge 
-                        variant="secondary" 
+                      <Badge
+                        variant="secondary"
                         className="ml-auto text-xs px-2 py-0.5 bg-primary/10 text-primary hover:bg-primary/20"
                       >
                         {item.badge}
@@ -220,7 +239,7 @@ export function Sidebar({ userRole, isCollapsed = false, onToggle }: SidebarProp
                     )}
                   </>
                 )}
-                
+
                 {/* Tooltip for collapsed state */}
                 {isCollapsed && (
                   <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-sm rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
@@ -246,15 +265,15 @@ export function Sidebar({ userRole, isCollapsed = false, onToggle }: SidebarProp
           )}
           {filteredItems.filter(item => item.section === "customization").map((item) => {
             const isActive = pathname === item.href
-            
+
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative",
-                  isActive 
-                    ? "bg-primary text-primary-foreground shadow-sm" 
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-sidebar-foreground hover:bg-accent hover:text-accent-foreground",
                   isCollapsed && "justify-center px-2"
                 )}
@@ -263,13 +282,13 @@ export function Sidebar({ userRole, isCollapsed = false, onToggle }: SidebarProp
                   "h-5 w-5 flex-shrink-0",
                   isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-accent-foreground"
                 )} />
-                
+
                 {!isCollapsed && (
                   <>
                     <span className="truncate">{item.title}</span>
                     {item.badge && (
-                      <Badge 
-                        variant="secondary" 
+                      <Badge
+                        variant="secondary"
                         className="ml-auto text-xs px-2 py-0.5 bg-primary/10 text-primary hover:bg-primary/20"
                       >
                         {item.badge}
@@ -277,7 +296,7 @@ export function Sidebar({ userRole, isCollapsed = false, onToggle }: SidebarProp
                     )}
                   </>
                 )}
-                
+
                 {/* Tooltip for collapsed state */}
                 {isCollapsed && (
                   <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-sm rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
@@ -302,31 +321,31 @@ export function Sidebar({ userRole, isCollapsed = false, onToggle }: SidebarProp
             </div>
           )}
           {filteredItems.filter(item => item.section === "billing").map((item) => {
-          const isActive = pathname === item.href
-          
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
+            const isActive = pathname === item.href
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative",
-                  isActive 
-                    ? "bg-primary text-primary-foreground shadow-sm" 
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-sidebar-foreground hover:bg-accent hover:text-accent-foreground",
-                isCollapsed && "justify-center px-2"
-              )}
-            >
-              <item.icon className={cn(
-                "h-5 w-5 flex-shrink-0",
-                isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-accent-foreground"
-              )} />
-              
-              {!isCollapsed && (
-                <>
+                  isCollapsed && "justify-center px-2"
+                )}
+              >
+                <item.icon className={cn(
+                  "h-5 w-5 flex-shrink-0",
+                  isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-accent-foreground"
+                )} />
+
+                {!isCollapsed && (
+                  <>
                     <span className="truncate">{item.title}</span>
                     {item.badge && (
-                      <Badge 
-                        variant="secondary" 
+                      <Badge
+                        variant="secondary"
                         className="ml-auto text-xs px-2 py-0.5 bg-primary/10 text-primary hover:bg-primary/20"
                       >
                         {item.badge}
@@ -334,7 +353,7 @@ export function Sidebar({ userRole, isCollapsed = false, onToggle }: SidebarProp
                     )}
                   </>
                 )}
-                
+
                 {/* Tooltip for collapsed state */}
                 {isCollapsed && (
                   <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-sm rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
@@ -360,15 +379,15 @@ export function Sidebar({ userRole, isCollapsed = false, onToggle }: SidebarProp
           )}
           {filteredItems.filter(item => item.section === "support").map((item) => {
             const isActive = pathname === item.href
-            
+
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative",
-                  isActive 
-                    ? "bg-primary text-primary-foreground shadow-sm" 
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-sidebar-foreground hover:bg-accent hover:text-accent-foreground",
                   isCollapsed && "justify-center px-2"
                 )}
@@ -377,38 +396,62 @@ export function Sidebar({ userRole, isCollapsed = false, onToggle }: SidebarProp
                   "h-5 w-5 flex-shrink-0",
                   isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-accent-foreground"
                 )} />
-                
+
                 {!isCollapsed && (
                   <>
                     <span className="truncate">{item.title}</span>
-                  {item.badge && (
-                    <Badge 
-                      variant="secondary" 
-                      className="ml-auto text-xs px-2 py-0.5 bg-primary/10 text-primary hover:bg-primary/20"
-                    >
-                      {item.badge}
-                    </Badge>
-                  )}
-                </>
-              )}
-              
-              {/* Tooltip for collapsed state */}
-              {isCollapsed && (
-                <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-sm rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
-                  {item.title}
-                  {item.badge && (
-                    <Badge variant="secondary" className="ml-2 text-xs">
-                      {item.badge}
-                    </Badge>
-                  )}
-                </div>
-              )}
-            </Link>
-          )
-        })}
-        </div>
-      </nav>
+                    {item.badge && (
+                      <Badge
+                        variant="secondary"
+                        className="ml-auto text-xs px-2 py-0.5 bg-primary/10 text-primary hover:bg-primary/20"
+                      >
+                        {item.badge}
+                      </Badge>
+                    )}
+                  </>
+                )}
 
-    </div>
+                {/* Tooltip for collapsed state */}
+                {isCollapsed && (
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-sm rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+                    {item.title}
+                    {item.badge && (
+                      <Badge variant="secondary" className="ml-2 text-xs">
+                        {item.badge}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </Link>
+            )
+          })}
+        </div>
+
+        {/* Sign Out Button */}
+        <div className="mt-auto pt-6 border-t border-sidebar-border">
+          <button
+            onClick={handleSignOut}
+            className={cn(
+              "flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive",
+              isCollapsed && "justify-center px-2"
+            )}
+          >
+            <LogOut className="h-5 w-5 flex-shrink-0" />
+
+            {!isCollapsed && (
+              <span className="truncate">Sign Out</span>
+            )}
+
+            {/* Tooltip for collapsed state */}
+            {isCollapsed && (
+              <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-sm rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
+                Sign Out
+              </div>
+            )}
+          </button>
+        </div>
+      </nav >
+
+    </div >
   )
 }

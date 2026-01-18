@@ -17,7 +17,7 @@ export default async function HomePage() {
     <div className="flex min-h-screen flex-col items-center justify-center p-6">
       <div className="text-center space-y-6">
         <h1 className="text-4xl font-bold tracking-tight">Client Portal</h1>
-        <p className="text-xl text-muted-foreground max-w-2xl">
+        <p className="text-xl text-muted-foreground max-w-2xl text-center">
           Access your personalized client portal to place orders, track shipments, manage customizations, and handle invoices with ease.
         </p>
         <div className="flex gap-4 justify-center">
